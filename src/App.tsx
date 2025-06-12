@@ -1,0 +1,227 @@
+import { useState } from 'react';
+
+interface URLResult {
+  url: string;
+  confidence: 'high' | 'medium' | 'low';
+  explanation: string;
+  alternatives_list: string;
+  needs_verification: boolean;
+}
+
+function App() {
+  const [inputText, setInputText] = useState<string>('');
+  const [result, setResult] = useState<URLResult | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleRecognizeURL = async () => {
+    if (!inputText.trim()) return;
+
+    setIsLoading(true);
+    setError(null);
+    setResult(null);
+
+    try {
+      const { createCerebras } = await import('@ai-sdk/cerebras');
+      const { generateObject } = await import('ai');
+      const { z } = await import('zod');
+
+      const cerebras = createCerebras({
+        apiKey: import.meta.env.VITE_CEREBRAS_API_KEY,
+      });
+
+      const urlResultSchema = z.object({
+        url: z.string().describe('Best guess URL or empty string if no match'),
+        confidence: z.enum(['high', 'medium', 'low']).describe('Confidence level of the URL guess'),
+        explanation: z.string().describe('Brief rationale for the URL guess'),
+        alternatives_list: z.string().describe('Comma-separated list of alternative URL possibilities'),
+        needs_verification: z.boolean().describe('Whether the URL needs verification'),
+      });
+
+      const { object: urlResult } = await generateObject({
+        model: cerebras('llama-4-scout-17b-16e-instruct'),
+        schema: urlResultSchema,
+        system: `You are a "URL Decipherer" specialized in interpreting human descriptions of websites to generate probable URLs. Your goal is to transform vague, fragmented, or contextual hints into actionable links.
+
+**Core Instructions:**
+
+1. **Input Handling:**
+   - Accept text where a URL is implied but not explicit
+   - Detect keywords: "site," "webpage," "URL," "domain," or contextual phrases
+
+2. **Decipher Logic:**
+   - **Explicit Mentions** (e.g., "example.com"): Output with high confidence
+   - **Keyword Guessing**: Extract core terms and generate domain candidates
+   - **Contextual Search**: Use semantic clues to combine keywords
+   - **Domain Confusion**: List alternatives when TLD is uncertain
+   - **Vague Descriptions**: Propose 1-3 best guesses
+   - **No Match**: Use empty string "" for url field when no match found
+
+3. **Domain Strategies:**
+   - Prioritize .com, then .org/.net/.io
+   - Consider known sites first (e.g., "video site" → youtube.com)
+   - Combine keywords creatively (e.g., "cats sailboat" → catsailing.com)
+4. **Output Requirements:**
+   - Always include https:// protocol when URL is found
+   - Use empty string "" for url field when no match
+   - Set confidence based on match certainty
+   - Provide clear explanation of reasoning
+   - List alternatives as comma-separated string (e.g., "https://example.org,https://example.io")
+   - Set needs_verification to true when confidence < high`,
+        prompt: inputText,
+      });
+
+      setResult(urlResult);
+
+    } catch (err) {
+      console.error('Error recognizing URL:', err);
+      setError(err instanceof Error ? err.message : 'An unknown error occurred.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const getConfidenceColor = (confidence: string) => {
+    switch (confidence) {
+      case 'high': return 'text-green-600 bg-green-50 border-green-200';
+      case 'medium': return 'text-yellow-600 bg-yellow-50 border-yellow-200';
+      case 'low': return 'text-red-600 bg-red-50 border-red-200';
+      default: return 'text-gray-600 bg-gray-50 border-gray-200';
+    }
+  };
+
+  const getThumbnailUrl = (url: string) => {
+    try {
+      const domain = new URL(url).hostname;
+      return `https://www.google.com/s2/favicons?domain=${domain}&sz=128`;
+    } catch {
+      return null;
+    }
+  };
+  return (
+    <div className="flex h-screen bg-gray-100 font-sans">
+      <div className="w-1/2 flex flex-col p-8 bg-white border-r border-gray-200">
+        <h1 className="text-2xl font-bold text-gray-800 mb-2">URL Recognizer</h1>
+        <p className="text-sm text-gray-600 mb-6">Hahe Wai Mana'o - Finding Memories of Water</p>
+        
+        <textarea
+          className="w-full flex-grow p-4 border border-gray-300 rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:outline-none"
+          placeholder="Describe a website you're trying to remember...&#10;&#10;Examples:&#10;• &quot;That site with the blue bird logo&quot;&#10;• &quot;Was it example.org or example.io?&quot;&#10;• &quot;Cats on a sailboat website&quot;"
+          value={inputText}
+          onChange={(e) => setInputText(e.target.value)}
+          disabled={isLoading}
+        />
+        <button
+          onClick={handleRecognizeURL}
+          disabled={isLoading || !inputText.trim()}
+          className="mt-4 w-full bg-blue-600 text-white font-semibold py-3 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+        >
+          {isLoading ? 'Thinking...' : 'Find URL'}
+        </button>
+      </div>
+
+      <div className="w-1/2 p-8 overflow-y-auto bg-gray-50">
+        {error && (
+          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg mb-4" role="alert">
+            <strong className="font-bold">Error: </strong>
+            <span className="block sm:inline">{error}</span>
+          </div>
+        )}
+        
+        {!isLoading && !result && !error && (
+          <div className="flex items-center justify-center h-full">
+            <p className="text-gray-500 text-center">
+              Your URL recognition result will appear here.
+            </p>
+          </div>
+        )}
+        
+        {result && (
+          <div className="space-y-4">
+            {/* Main Result Card */}
+            {result.url && result.url.trim() && (
+              <div className={`p-6 rounded-lg border-2 ${getConfidenceColor(result.confidence)}`}>
+                <div className="flex items-start space-x-4">
+                  {getThumbnailUrl(result.url) && (
+                    <img
+                      src={getThumbnailUrl(result.url)!}
+                      alt="Site favicon"
+                      className="w-16 h-16 rounded-lg shadow-sm"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).style.display = 'none';
+                      }}
+                    />
+                  )}
+                  <div className="flex-1">
+                    <h3 className="text-lg font-semibold mb-2">Found URL</h3>
+                    <a
+                      href={result.url}
+                      target="_blank"
+                      rel="noopener noreferrer"                      className="text-blue-600 hover:text-blue-800 underline text-xl break-all"
+                    >
+                      {result.url}
+                    </a>
+                    <div className="mt-2 flex items-center space-x-2">
+                      <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                        result.confidence === 'high' ? 'bg-green-200 text-green-800' :
+                        result.confidence === 'medium' ? 'bg-yellow-200 text-yellow-800' :
+                        'bg-red-200 text-red-800'
+                      }`}>
+                        {result.confidence} confidence
+                      </span>
+                      {result.needs_verification && (
+                        <span className="text-sm text-gray-600">⚠️ Needs verification</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* No Match Card */}
+            {(!result.url || !result.url.trim()) && (
+              <div className="p-6 rounded-lg border-2 border-gray-200 bg-white">
+                <h3 className="text-lg font-semibold mb-2 text-gray-800">No Match Found</h3>
+                <p className="text-gray-600">
+                  Couldn't find a matching URL. Try adding more specific details like:
+                </p>
+                <ul className="mt-2 list-disc list-inside text-gray-600">
+                  <li>Purpose of the website</li>                  <li>Visual elements you remember</li>
+                  <li>Specific keywords from the domain</li>
+                </ul>
+              </div>
+            )}
+
+            {/* Explanation */}
+            <div className="p-4 bg-white rounded-lg border border-gray-200">
+              <h4 className="font-semibold text-gray-700 mb-1">How I figured it out:</h4>
+              <p className="text-gray-600">{result.explanation}</p>
+            </div>
+
+            {/* Alternatives */}
+            {result.alternatives_list && result.alternatives_list.trim() && (
+              <div className="p-4 bg-white rounded-lg border border-gray-200">
+                <h4 className="font-semibold text-gray-700 mb-2">Other possibilities:</h4>
+                <div className="space-y-2">
+                  {result.alternatives_list.split(',').map((alt, index) => (
+                    <a
+                      key={index}
+                      href={alt.trim()}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block text-blue-600 hover:text-blue-800 underline"
+                    >
+                      {alt.trim()}
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export default App;
