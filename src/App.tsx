@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { findValidURL } from './utils/urlValidator';
 
 interface URLResult {
   url: string;
@@ -23,6 +24,8 @@ function App() {
   const [error, setError] = useState<string | null>(null);
   const [previewData, setPreviewData] = useState<MicrolinkData | null>(null);
   const [isLoadingPreview, setIsLoadingPreview] = useState<boolean>(false);
+  const [validatedUrl, setValidatedUrl] = useState<string | null>(null);
+  const [isValidating, setIsValidating] = useState<boolean>(false);
 
   const handleRecognizeURL = async () => {
     if (!inputText.trim()) return;
@@ -31,6 +34,7 @@ function App() {
     setError(null);
     setResult(null);
     setPreviewData(null);
+    setValidatedUrl(null);
 
     try {
       const { createCerebras } = await import('@ai-sdk/cerebras');
@@ -110,19 +114,56 @@ function App() {
     }
   };
 
-  // Fetch preview when we have a high-confidence URL
+  // Validate and find working URL variation
+  useEffect(() => {
+    const validateAndUpdate = async () => {
+      if (!result?.url || !result.url.trim()) return;
+      
+      setIsValidating(true);
+      try {
+        const validation = await findValidURL(result.url, 4); // Try up to 4 variations
+        
+        if (validation.validated && validation.url !== result.url) {
+          // Found a working variation!
+          setValidatedUrl(validation.url);
+          
+          // Update result confidence to high since we validated it
+          setResult(prev => prev ? { ...prev, confidence: 'high' } : prev);
+        } else if (validation.validated) {
+          // Original URL was correct
+          setValidatedUrl(result.url);
+        } else {
+          // No valid URL found, lower confidence
+          setResult(prev => prev ? { 
+            ...prev, 
+            confidence: prev.confidence === 'high' ? 'medium' : 'low',
+            needs_verification: true 
+          } : prev);
+        }
+      } catch (err) {
+        console.error('Error validating URL:', err);
+      } finally {
+        setIsValidating(false);
+      }
+    };
+
+    validateAndUpdate();
+  }, [result?.url]);
+
+  // Fetch preview when we have a validated high-confidence URL
   useEffect(() => {
     const fetchPreview = async () => {
-      if (!result?.url || result.confidence !== 'high' || !result.url.trim()) return;
+      const urlToPreview = validatedUrl || result?.url;
+      if (!urlToPreview || result?.confidence !== 'high' || !urlToPreview.trim()) return;
       
       setIsLoadingPreview(true);
       try {
         // TODO: Add your Microlink API key here when you have it
         // const MICROLINK_API_KEY = 'your-api-key-here';
-        // const apiUrl = `https://api.microlink.io/?url=${encodeURIComponent(result.url)}&screenshot&apikey=${MICROLINK_API_KEY}`;
+        // const apiUrl = `https://api.microlink.io/?url=${encodeURIComponent(urlToPreview)}&screenshot&apikey=${MICROLINK_API_KEY}`;
         
         const response = await fetch(
-          `https://api.microlink.io/?url=${encodeURIComponent(result.url)}&screenshot`
+          `https://api.microlink.io/?url=${encodeURIComponent(urlToPreview)}&screenshot`
         );
         const data = await response.json();
         
@@ -138,7 +179,7 @@ function App() {
     };
 
     fetchPreview();
-  }, [result]);
+  }, [result?.confidence, validatedUrl]);
   return (
     <div className="flex h-screen bg-gray-100 font-sans">
       <div className="w-1/2 flex flex-col p-8 bg-white border-r border-gray-200">
@@ -196,13 +237,18 @@ function App() {
                   <div className="flex-1">
                     <h3 className="text-lg font-semibold mb-2">Found URL</h3>
                     <a
-                      href={result.url}
+                      href={validatedUrl || result.url}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-blue-600 hover:text-blue-800 underline text-xl break-all"
                     >
-                      {result.url}
+                      {validatedUrl || result.url}
                     </a>
+                    {validatedUrl && validatedUrl !== result.url && (
+                      <p className="text-sm text-green-600 mt-1">
+                        ✓ Corrected from: {result.url}
+                      </p>
+                    )}
                     <div className="mt-2 flex items-center space-x-2">
                       <span className={`px-3 py-1 rounded-full text-sm font-medium ${
                         result.confidence === 'high' ? 'bg-green-200 text-green-800' :
@@ -210,8 +256,14 @@ function App() {
                         'bg-red-200 text-red-800'
                       }`}>
                         {result.confidence} confidence
+                        {validatedUrl && ' (validated)'}
                       </span>
-                      {result.needs_verification && (
+                      {isValidating && (
+                        <span className="text-sm text-gray-600 animate-pulse">
+                          🔍 Validating...
+                        </span>
+                      )}
+                      {result.needs_verification && !validatedUrl && (
                         <span className="text-sm text-gray-600">⚠️ Needs verification</span>
                       )}
                     </div>
