@@ -2,20 +2,36 @@
 
 A proof-of-concept application that uses AI to interpret vague human descriptions of websites and generate probable URLs.
 
+# URL Recognizer - Hahe Wai Mana'o
+
+A proof-of-concept application that uses AI to interpret vague human descriptions of websites and generate probable URLs.
+
 ## Features
 
-- Recognizes URLs from various types of descriptions:
+- **Smart URL Recognition** from various description types:
   - Explicit mentions (e.g., "example.com")
   - Keyword-based guessing ("that test site")
   - Contextual clues ("cats on a sailboat website")
   - Domain confusion ("was it .org or .io?")
   - Vague memories ("blue bird logo social site")
 
-- Provides confidence levels (high/medium/low)
-- Shows explanations of reasoning
-- Suggests alternative possibilities
-- Displays site favicons when available
-- **NEW**: Shows live website screenshot preview for high-confidence results (via Microlink API)
+- **URL Validation & Auto-Correction**:
+  - Automatically validates recognized URLs
+  - Tests variations (hyphenated, underscored, different TLDs)
+  - Shows corrected URL when a variation works
+  - Example: `kelleherinternational.com` → `kelleher-international.com`
+
+- **Visual Feedback**:
+  - Confidence levels (high/medium/low)
+  - Live validation status
+  - Site favicons
+  - **Website screenshot previews** for high-confidence results (via Microlink API)
+
+- **Intelligent Variation Testing**:
+  - Tries hyphenated versions for compound words
+  - Tests with/without underscores
+  - Checks common TLD alternatives (.com, .org, .net, .io)
+  - Validates with/without www prefix
 
 ## Setup
 
