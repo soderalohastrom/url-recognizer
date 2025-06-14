@@ -15,6 +15,7 @@ A proof-of-concept application that uses AI to interpret vague human description
 - Shows explanations of reasoning
 - Suggests alternative possibilities
 - Displays site favicons when available
+- **NEW**: Shows live website screenshot preview for high-confidence results (via Microlink API)
 
 ## Setup
 
@@ -34,6 +35,17 @@ npm run dev
 ```
 
 The app will run on port 5180 by default.
+
+## Microlink API Integration
+
+The app uses the Microlink API to fetch website screenshots for high-confidence URL results. This provides a visual preview of the website directly in the result card.
+
+To add your Microlink API key:
+1. Get an API key from [microlink.io](https://microlink.io)
+2. In `src/App.tsx`, find the TODO comment in the `fetchPreview` function
+3. Uncomment and add your API key there
+
+The app works without an API key but may have rate limits.
 
 ## Technology Stack
 

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 interface URLResult {
   url: string;
@@ -8,11 +8,21 @@ interface URLResult {
   needs_verification: boolean;
 }
 
+interface MicrolinkData {
+  title?: string;
+  description?: string;
+  screenshot?: {
+    url: string;
+  };
+}
+
 function App() {
   const [inputText, setInputText] = useState<string>('');
   const [result, setResult] = useState<URLResult | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [previewData, setPreviewData] = useState<MicrolinkData | null>(null);
+  const [isLoadingPreview, setIsLoadingPreview] = useState<boolean>(false);
 
   const handleRecognizeURL = async () => {
     if (!inputText.trim()) return;
@@ -20,6 +30,7 @@ function App() {
     setIsLoading(true);
     setError(null);
     setResult(null);
+    setPreviewData(null);
 
     try {
       const { createCerebras } = await import('@ai-sdk/cerebras');
@@ -98,6 +109,36 @@ function App() {
       return null;
     }
   };
+
+  // Fetch preview when we have a high-confidence URL
+  useEffect(() => {
+    const fetchPreview = async () => {
+      if (!result?.url || result.confidence !== 'high' || !result.url.trim()) return;
+      
+      setIsLoadingPreview(true);
+      try {
+        // TODO: Add your Microlink API key here when you have it
+        // const MICROLINK_API_KEY = 'your-api-key-here';
+        // const apiUrl = `https://api.microlink.io/?url=${encodeURIComponent(result.url)}&screenshot=true&meta=false&embed=screenshot.url&apikey=${MICROLINK_API_KEY}`;
+        
+        const response = await fetch(
+          `https://api.microlink.io/?url=${encodeURIComponent(result.url)}&screenshot=true&meta=false&embed=screenshot.url`
+        );
+        const data = await response.json();
+        
+        if (data.status === 'success' && data.data) {
+          setPreviewData(data.data);
+        }
+      } catch (err) {
+        console.error('Error fetching preview:', err);
+        // Silently fail - preview is a nice-to-have feature
+      } finally {
+        setIsLoadingPreview(false);
+      }
+    };
+
+    fetchPreview();
+  }, [result]);
   return (
     <div className="flex h-screen bg-gray-100 font-sans">
       <div className="w-1/2 flex flex-col p-8 bg-white border-r border-gray-200">
@@ -146,7 +187,7 @@ function App() {
                     <img
                       src={getThumbnailUrl(result.url)!}
                       alt="Site favicon"
-                      className="w-16 h-16 rounded-lg shadow-sm"
+                      className="w-16 h-16 rounded-lg shadow-sm flex-shrink-0"
                       onError={(e) => {
                         (e.target as HTMLImageElement).style.display = 'none';
                       }}
@@ -157,7 +198,50 @@ function App() {
                     <a
                       href={result.url}
                       target="_blank"
-                      rel="noopener noreferrer"                      className="text-blue-600 hover:text-blue-800 underline text-xl break-all"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:text-blue-800 underline text-xl break-all"
+                    >
+                      {result.url}
+                    </a>
+                    <div className="mt-2 flex items-center space-x-2">
+                      <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                        result.confidence === 'high' ? 'bg-green-200 text-green-800' :
+                        result.confidence === 'medium' ? 'bg-yellow-200 text-yellow-800' :
+                        'bg-red-200 text-red-800'
+                      }`}>
+                        {result.confidence} confidence
+                      </span>
+                      {result.needs_verification && (
+                        <span className="text-sm text-gray-600">⚠️ Needs verification</span>
+                      )}
+                    </div>
+                    
+                    {/* Screenshot Preview - Only for high confidence */}
+                    {result.confidence === 'high' && (
+                      <div className="mt-4">
+                        {isLoadingPreview && (
+                          <div className="bg-gray-100 rounded-lg p-4 animate-pulse">
+                            <div className="h-32 bg-gray-200 rounded"></div>
+                            <p className="text-sm text-gray-500 mt-2">Loading preview...</p>
+                          </div>
+                        )}
+                        {previewData?.screenshot?.url && !isLoadingPreview && (
+                          <div className="relative group">
+                            <img
+                              src={previewData.screenshot.url}
+                              alt={`Preview of ${result.url}`}
+                              className="w-full rounded-lg shadow-md border border-gray-200 transition-transform group-hover:scale-[1.02]"
+                              style={{ maxHeight: '200px', objectFit: 'cover', objectPosition: 'top' }}
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity rounded-lg pointer-events-none"></div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}                      className="text-blue-600 hover:text-blue-800 underline text-xl break-all"
                     >
                       {result.url}
                     </a>
