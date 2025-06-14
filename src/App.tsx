@@ -119,10 +119,10 @@ function App() {
       try {
         // TODO: Add your Microlink API key here when you have it
         // const MICROLINK_API_KEY = 'your-api-key-here';
-        // const apiUrl = `https://api.microlink.io/?url=${encodeURIComponent(result.url)}&screenshot=true&meta=false&embed=screenshot.url&apikey=${MICROLINK_API_KEY}`;
+        // const apiUrl = `https://api.microlink.io/?url=${encodeURIComponent(result.url)}&screenshot&apikey=${MICROLINK_API_KEY}`;
         
         const response = await fetch(
-          `https://api.microlink.io/?url=${encodeURIComponent(result.url)}&screenshot=true&meta=false&embed=screenshot.url`
+          `https://api.microlink.io/?url=${encodeURIComponent(result.url)}&screenshot`
         );
         const data = await response.json();
         
