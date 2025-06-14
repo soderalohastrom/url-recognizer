@@ -241,25 +241,6 @@ function App() {
                   </div>
                 </div>
               </div>
-            )}                      className="text-blue-600 hover:text-blue-800 underline text-xl break-all"
-                    >
-                      {result.url}
-                    </a>
-                    <div className="mt-2 flex items-center space-x-2">
-                      <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                        result.confidence === 'high' ? 'bg-green-200 text-green-800' :
-                        result.confidence === 'medium' ? 'bg-yellow-200 text-yellow-800' :
-                        'bg-red-200 text-red-800'
-                      }`}>
-                        {result.confidence} confidence
-                      </span>
-                      {result.needs_verification && (
-                        <span className="text-sm text-gray-600">⚠️ Needs verification</span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
             )}
 
             {/* No Match Card */}
