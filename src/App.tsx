@@ -54,7 +54,8 @@ function App() {
       });
 
       const { object: urlResult } = await generateObject({
-        model: cerebras('llama-4-scout-17b-16e-instruct'),
+        // model: cerebras('llama-4-scout-17b-16e-instruct'),
+        model: cerebras('qwen-3-32b'),
         schema: urlResultSchema,
         system: `You are a "URL Decipherer" specialized in interpreting human descriptions of websites to generate probable URLs. Your goal is to transform vague, fragmented, or contextual hints into actionable links.
 
@@ -82,7 +83,8 @@ function App() {
    - Set confidence based on match certainty
    - Provide clear explanation of reasoning
    - List alternatives as comma-separated string (e.g., "https://example.org,https://example.io")
-   - Set needs_verification to true when confidence < high`,
+   - Set needs_verification to true when confidence < high
+    /no_think`,
         prompt: inputText,
       });
 
